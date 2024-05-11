@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "ml-knn": "^3.0.0",
+    "papaparse": "^5.4.1"
+  }
+}
