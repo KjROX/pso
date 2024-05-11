@@ -9,8 +9,24 @@ const labels = [
 ];
 let populationSize = 10;
 let dimensions = 5;
+const allBestSolutions = [];
+const C1 = 2; //Cognitive (𝐶1) and social acceleration coefficients (𝐶2) of PSO
+const C2 = 2;
+const wNum = 0;
+const maxIterations = 100;
 
 //Functions
+
+// Sphere function->
+function fitnessFunction(position) {
+  // Define the fitness function to minimize
+  let sum = 0;
+  for (let i = 0; i < position.length; i++) {
+    sum += position[i] * position[i];
+  }
+  return sum;
+}
+
 function minMaxScaler(array) {
   const min = Math.min(...array);
   const max = Math.max(...array);
@@ -67,9 +83,119 @@ function evaluateSolutions(population, labels) {
       bestSolution = solution;
     }
   });
-
-  console.log("Highest score:", highestScore);
   return bestSolution;
+}
+
+function PSO(dimensions, initialPopulation, C1, C2, wNum, maxIterationsOfPSO) {
+  const globalBestArray = [];
+  let globalBest = {
+    position: [],
+    value: Infinity,
+  };
+
+  const particles = [];
+
+  const numberOfParticles = initialPopulation.length;
+
+  // Initialize particles
+  for (let i = 0; i < numberOfParticles; i++) {
+    const particle = {
+      position: [...initialPopulation[i].geneId],
+      velocity: initialPopulation[i].geneId.map((id) => id * 0.3), // Initialize velocity by multiplying the position by 0.3
+      personalBest: {
+        position: [],
+        value: Infinity,
+      },
+    };
+
+    // Calculate fitness value for the initial position
+    const fitnessValue = fitnessFunction(particle.position);
+
+    // Initialize personal best
+    particle.personalBest.position = [...particle.position];
+    particle.personalBest.value = fitnessValue;
+
+    // Update global best if necessary
+    if (fitnessValue < globalBest.value) {
+      globalBest.position = [...particle.position];
+      globalBest.value = fitnessValue;
+    }
+
+    particles.push(particle);
+  }
+
+  // PSO main loop
+  let iteration = 0;
+  while (iteration < maxIterationsOfPSO) {
+    let w;
+    if (wNum === 0) {
+      // Constant Inertia Weight
+      w = 0.8;
+    } else if (wNum === 1) {
+      // Linearly Decreasing Inertia Weight
+      w = 0.9 - ((0.9 - 0.4) * iteration) / maxIterationsOfPSO;
+    } else {
+      // Random Inertia Weight
+      w = 0.5 + Math.random() / 2;
+    }
+
+    for (let i = 0; i < numberOfParticles; i++) {
+      const particle = particles[i];
+
+      // Calculate velocity using the PSO equations
+      for (let j = 0; j < dimensions; j++) {
+        const r1 = Math.random();
+        const r2 = Math.random();
+
+        const cognitiveComponent =
+          C1 * r1 * (particle.personalBest.position[j] - particle.position[j]);
+        const socialComponent =
+          C2 * r2 * (globalBest.position[j] - particle.position[j]);
+
+        particle.velocity[j] =
+          w * particle.velocity[j] + cognitiveComponent + socialComponent;
+      }
+
+      // Update particle position
+      for (let j = 0; j < dimensions; j++) {
+        particle.position[j] += particle.velocity[j];
+      }
+
+      // Calculate fitness value for the new position
+      const newFitnessValue = fitnessFunction(particle.position);
+
+      // Update personal best if necessary
+      if (newFitnessValue < particle.personalBest.value) {
+        particle.personalBest.position = [...particle.position];
+        particle.personalBest.value = newFitnessValue;
+      }
+
+      // Update global best if necessary
+      if (newFitnessValue < globalBest.value) {
+        globalBest.position = [...particle.position];
+        globalBest.value = newFitnessValue;
+      }
+    }
+    globalBestArray.push([...globalBest.position]);
+
+    iteration++;
+  }
+
+  return { globalBest, globalBestArray };
+}
+
+function buildPopulationFromResultsOfPSO(positionArray, records) {
+  let population = [];
+  for (let i = 0; i < positionArray.length; i++) {
+    let geneId = positionArray[i].map((value) => Math.floor(Math.abs(value)));
+    let features = geneId.map((id) => records[id]);
+
+    population.push({
+      features: transpose(features),
+      geneId: geneId,
+    });
+  }
+  return population;
 }
 
 // Load and parse the dataset
@@ -126,13 +252,53 @@ records = transpose(normalizedRecords);
 
 // Build the initial population
 console.log("Building the initial population...");
-let population = buildInitialPopulation(populationSize, dimensions, records);
-console.log("🚀 ~ population:", population);
+let initialPopulation = buildInitialPopulation(
+  populationSize,
+  dimensions,
+  records
+);
 
 // Evaluate the initial population
 console.log("Evaluating the initial population...");
-let bestSolution = evaluateSolutions(population, labels);
-console.log("Best solution:", bestSolution);
+let bestSolutionFromInitialPopulation = evaluateSolutions(
+  initialPopulation,
+  labels
+);
+
+// Store the best solution from the initial population
+allBestSolutions.push(bestSolutionFromInitialPopulation.geneId);
+
+const result = PSO(
+  dimensions,
+  initialPopulation,
+  C1,
+  C2,
+  wNum,
+  initialPopulation.length
+);
+
+for (let i = 0; i < maxIterations; i++) {
+  const result = PSO(
+    dimensions,
+    initialPopulation,
+    C1,
+    C2,
+    wNum,
+    initialPopulation.length
+  );
+  const populationFromResultsOfPSO = buildPopulationFromResultsOfPSO(
+    result.globalBestArray,
+    records
+  );
+
+  const bestSolutionFromResultsOfPSO = evaluateSolutions(
+    populationFromResultsOfPSO,
+    labels
+  );
+  allBestSolutions.push(bestSolutionFromResultsOfPSO);
+}
+
+console.log("🚀 ~ allBestSolutions:", allBestSolutions);
 
 //A-I->0
 //j_last->1
