@@ -1,0 +1,3 @@
+Doubts:-
+1. Will I take the fitness function and inertia weight based on the benchmark function results I got on previous sem
+2. the positions generated from pso, has got negative values and decimal values, I am taking Math.floor() of these decimal values and ignoring the negative signs for negative values, check screenshot

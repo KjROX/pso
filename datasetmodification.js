@@ -268,14 +268,14 @@ let bestSolutionFromInitialPopulation = evaluateSolutions(
 // Store the best solution from the initial population
 allBestSolutions.push(bestSolutionFromInitialPopulation.geneId);
 
-const result = PSO(
-  dimensions,
-  initialPopulation,
-  C1,
-  C2,
-  wNum,
-  initialPopulation.length
-);
+// const result = PSO(
+//   dimensions,
+//   initialPopulation,
+//   C1,
+//   C2,
+//   wNum,
+//   initialPopulation.length
+// );
 
 for (let i = 0; i < maxIterations; i++) {
   const result = PSO(
