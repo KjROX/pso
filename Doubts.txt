@@ -1,3 +1,8 @@
 Doubts:-
-1. Will I take the fitness function and inertia weight based on the benchmark function results I got on previous sem
-2. the positions generated from pso, has got negative values and decimal values, I am taking Math.floor() of these decimal values and ignoring the negative signs for negative values, check screenshot
+1.As I am setting the position value to upper limit / lower limit if the value crosses the upper limit / lower limit, do we have to do the same for velocity as well, because velocity's value is impacting the position 
+
+
+To do:-
+1) Consider the solution generated from KNN as the best solution while initializing PSO
+2) Fitness function will be implemented using KNN
+3) Our goal is to find the maximum value of fitness function in PSO, not the minimal one

@@ -18,13 +18,36 @@ const maxIterations = 100;
 //Functions
 
 // Sphere function->
+// function fitnessFunction(position) {
+//   // Define the fitness function to minimize
+//   let sum = 0;
+//   for (let i = 0; i < position.length; i++) {
+//     sum += position[i] * position[i];
+//   }
+//   return sum;
+// }
+
 function fitnessFunction(position) {
-  // Define the fitness function to minimize
-  let sum = 0;
-  for (let i = 0; i < position.length; i++) {
-    sum += position[i] * position[i];
+  const features = transpose(position.map((id) => records[id]));
+
+  // const genes = position.map((id) => records[id]);
+  // console.log("🚀 ~ fitnessFunction ~ genes:", genes);
+
+  let score = 0;
+
+  for (let i = 0; i < features.length; i++) {
+    let testSet = features[i];
+    let trainingSet = [...features.slice(0, i), ...features.slice(i + 1)];
+    let trainingLabels = [...labels.slice(0, i), ...labels.slice(i + 1)];
+
+    let knn = new KNN(trainingSet, trainingLabels, { k: 3 });
+    let prediction = knn.predict(testSet);
+
+    if (prediction === labels[i]) {
+      score++;
+    }
   }
-  return sum;
+  return score;
 }
 
 function minMaxScaler(array) {
@@ -42,6 +65,7 @@ function buildInitialPopulation(populationSize, dimensions, records) {
     let solution = {
       features: [],
       geneId: Array(dimensions).fill(-1),
+      scores: [],
     };
     for (let j = 0; j < dimensions; j++) {
       let randomIndex = Math.floor(Math.random() * records.length);
@@ -83,14 +107,22 @@ function evaluateSolutions(population, labels) {
       bestSolution = solution;
     }
   });
-  return bestSolution;
+  return { bestSolution, highestScore, scores };
 }
 
-function PSO(dimensions, initialPopulation, C1, C2, wNum, maxIterationsOfPSO) {
+function PSO(
+  dimensions,
+  initialPopulation,
+  C1,
+  C2,
+  wNum,
+  maxIterationsOfPSO,
+  initialGlobalBest
+) {
   const globalBestArray = [];
   let globalBest = {
-    position: [],
-    value: Infinity,
+    position: [...initialGlobalBest.bestSolution.geneId],
+    value: initialGlobalBest.highestScore,
   };
 
   const particles = [];
@@ -103,8 +135,8 @@ function PSO(dimensions, initialPopulation, C1, C2, wNum, maxIterationsOfPSO) {
       position: [...initialPopulation[i].geneId],
       velocity: initialPopulation[i].geneId.map((id) => id * 0.3), // Initialize velocity by multiplying the position by 0.3
       personalBest: {
-        position: [],
-        value: Infinity,
+        position: [...initialPopulation[i].geneId],
+        value: initialGlobalBest.scores[i],
       },
     };
 
@@ -159,19 +191,27 @@ function PSO(dimensions, initialPopulation, C1, C2, wNum, maxIterationsOfPSO) {
       // Update particle position
       for (let j = 0; j < dimensions; j++) {
         particle.position[j] += particle.velocity[j];
+
+        if (particle.position[j] < 0) {
+          particle.position[j] = 0;
+        } else if (particle.position[j] >= records.length) {
+          particle.position[j] = records.length - 1;
+        }
       }
 
       // Calculate fitness value for the new position
-      const newFitnessValue = fitnessFunction(particle.position);
+      const newFitnessValue = fitnessFunction(
+        particle.position.map((id) => Math.floor(Math.abs(id)))
+      );
 
       // Update personal best if necessary
-      if (newFitnessValue < particle.personalBest.value) {
+      if (newFitnessValue > particle.personalBest.value) {
         particle.personalBest.position = [...particle.position];
         particle.personalBest.value = newFitnessValue;
       }
 
       // Update global best if necessary
-      if (newFitnessValue < globalBest.value) {
+      if (newFitnessValue > globalBest.value) {
         globalBest.position = [...particle.position];
         globalBest.value = newFitnessValue;
       }
@@ -205,8 +245,6 @@ const data = fs.readFileSync("GSE7621_dataset.csv", "utf8");
 let records = Papa.parse(data, { header: true, dynamicTyping: true }).data;
 records = records
   .map((row) => Object.values(row))
-  //Filling missing values for each row with 0
-  .map((row) => row.map((value) => (isNaN(value) ? 0 : Number(value))))
   //remove the last element of the array
   .slice(0, -1);
 
@@ -266,7 +304,7 @@ let bestSolutionFromInitialPopulation = evaluateSolutions(
 );
 
 // Store the best solution from the initial population
-allBestSolutions.push(bestSolutionFromInitialPopulation.geneId);
+// allBestSolutions.push(bestSolutionFromInitialPopulation.bestSolution.geneId);
 
 // const result = PSO(
 //   dimensions,
@@ -284,7 +322,8 @@ for (let i = 0; i < maxIterations; i++) {
     C1,
     C2,
     wNum,
-    initialPopulation.length
+    initialPopulation.length,
+    bestSolutionFromInitialPopulation
   );
   const populationFromResultsOfPSO = buildPopulationFromResultsOfPSO(
     result.globalBestArray,
